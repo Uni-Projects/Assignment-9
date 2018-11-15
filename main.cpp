@@ -9,6 +9,10 @@
 *     (based on *arrays*, convert this yourself to vector)
 *   - main that reads Tracks.txt and calls a sorting algorithm.
 **********************************************************************/
+//Assignment 9
+//Paolo Scattolin s1023775
+//Johan Urban s1024726
+//#define NDEBUG
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -16,6 +20,8 @@
 #include <cstring>
 #include <vector>
 #include <cassert>
+#include <algorithm>
+#include <string.h>
 
 using namespace std;
 
@@ -39,25 +45,67 @@ struct Track
 	Length time;							// track length
 	string country;                         // countr(y/ies) of artist (separated by ,)
 };
-
+int iteration = 0;
 const int MAX_NO_OF_SONGS = 6000;           // NOTE: only required for *array*
-Track songs [MAX_NO_OF_SONGS];              // NOTE: this must become vector<Track>
+vector<Track> songs ;              // NOTE: this must become vector<Track>
 
 /************************************************************************
 *   Ordering relations op Track:
 *      define < and == for Length and Track yourself, the other
 *      ordering relations (>, <=, >=, >) follow from these automatically.
 ************************************************************************/
+bool operator<(const Length& a, const Length& b)
+{
+    iteration++;
+    if (a.minutes == b.minutes)
+        return a.seconds < b.seconds;
+    else return a.minutes < b.minutes;
+
+}
+
+bool operator==(const Length& a, const Length& b)
+{
+    iteration++;
+    return (a.minutes == b.minutes && a.seconds == b.seconds) ;   /* implement a correct == ordering on Track values */
+}
+
+//	derived ordering on Length values:
+bool operator>(const Length& a, const Length& b)
+{
+	return b < a ;
+}
+
+bool operator<=(const Length& a, const Length& b)
+{
+	return !(b < a) ;
+}
+
+bool operator>=(const Length& a, const Length& b)
+{
+	return b <= a ;
+}
 bool operator<(const Track& a, const Track& b)
 {
-    return a.artist < b.artist ;    /* implement a correct <  ordering on Track values */
+    iteration++;
+    if(a.artist == b.artist)
+    {
+         if(a.cd == b.cd)
+         {
+             if(a.year == b.year)
+             {
+                return a.track_no < b.track_no;
+             }else return a.year < b.year;
+
+         }else return a.cd < b.cd;
+
+    }else return a.artist < b.artist ;
 }
 
 bool operator==(const Track& a, const Track& b)
 {
-    return a.artist == b.artist ;   /* implement a correct == ordering on Track values */
+    iteration++;
+    return (a.artist == b.artist && a.cd == b.cd && a.year == b.year && a.track_no == b.track_no) ;
 }
-
 //	derived ordering on Track values:
 bool operator>(const Track& a, const Track& b)
 {
@@ -153,28 +201,45 @@ ostream& operator<< (ostream& out, const Track track)
     return out ;
 }
 
+void print (int index)
+{
+    int stars = iteration/100000;
+    cout << "After " << index << " element sorted:";
+
+    while (stars > 0 )
+    {
+        cout <<"*";
+        stars--;
+    }
+    cout<<"."<< endl;
+
+}
 // NOTE: this version uses *array* implementation, convert to vector yourself
-int read_songs (ifstream& infile, Track songs [MAX_NO_OF_SONGS])
+int read_songs (ifstream& infile, vector <Track>& songs)
 {// pre-condition:
     assert (infile.is_open ()) ;
 /*  post-condition:
     All tracks in infile have been read and stored in the same order in songs.
     The result is the number of tracks that have been read.
 */
-    int no_of_read_songs = 0 ;
+    int i = 0 ;
     do {
         Track song ;
         infile >> song ;
         if (infile)
-            songs[no_of_read_songs++] = song ;
+        {
+            songs.push_back(song);
+            i++;
+        }
     }
-    while (infile && no_of_read_songs < MAX_NO_OF_SONGS);
-    return no_of_read_songs ;
+    while (infile && i < MAX_NO_OF_SONGS);
+
+    return i ;
 }
 
 int read_file (string filename)
 {// pre-condition:
-    assert (size (songs) == 0) ;
+    assert (songs.size() == 0) ;
 /*  post-condition:
     If the result is -1, then no file could be opened, and songs is unchanged.
     Otherwise, the result is zero or positive, and songs contains all the found tracks in the
@@ -189,19 +254,21 @@ int read_file (string filename)
     cout << "Reading '" << filename << "'." << endl;
 	const int NO_OF_SONGS = read_songs (songsDBS, songs);
 	songsDBS.close();
-	cout << " Read " << NO_OF_SONGS << " tracks." << endl;
+	cout << "Read " << NO_OF_SONGS << " tracks." << endl;
 	return NO_OF_SONGS;
 }
 
 // NOTE: this version uses *array* implementation, convert to vector yourself
-void show_all_tracks (Track songs [MAX_NO_OF_SONGS], int no_of_songs)
+void show_all_tracks (vector <Track> songs, int no_of_songs)
 {// pre-condition:
     assert (no_of_songs < MAX_NO_OF_SONGS) ;
 /*  post-condition:
     songs[0] ... songs[no_of_songs-1] have been displayed to cout.
 */
-    for (int i = 0 ; i < no_of_songs; i++)
-        cout << i+1 << ". " << songs[i] << endl ;
+    for (int i = 0 ; i < no_of_songs ; i++)
+    {
+        cout << i+1 <<". "<< songs[i] << endl ;
+    }
 }
 
 /************************************************************************
@@ -231,9 +298,9 @@ bool valid_slice (Slice s)
 	return 0 <= s.from && s.from <= s.to ;
 }
 
-typedef int El ;                // NOTE: for the assignment you need to sort Track values
+typedef vector<Track> El ;                // NOTE: for the assignment you need to sort Track values
 
-bool is_sorted (El data [], Slice s)
+bool is_sorted (vector <Track>& data, Slice s)
 {//	pre-condition:
 	assert (valid_slice(s)) ;	// ...and s.to < size of data
 //	post-condition:
@@ -248,7 +315,7 @@ bool is_sorted (El data [], Slice s)
 	return sorted ;
 }
 
-int find_position ( El data [], Slice s, El y )
+int find_position ( vector <Track>& data, Slice s, Track y )
 {//	pre-condition:
 	assert (valid_slice(s) && is_sorted(data,s)) ;    // ...and s.to < size of data
 //	post-condition: s.from <= result <= s.to+1
@@ -258,7 +325,7 @@ int find_position ( El data [], Slice s, El y )
 	return s.to+1;
 }
 
-void shift_right ( El data [], Slice s )
+void shift_right ( vector <Track>& data, Slice s )
 {//	pre-condition:
 	assert (valid_slice (s)) ;	// ... and s.to < size (data) - 1
 //	post-condition:  data[s.from+1]	= 	old data[s.from]
@@ -269,7 +336,7 @@ void shift_right ( El data [], Slice s )
 		data [i]  = data [i-1] ;
 }
 
-void insert ( El data [], int& length, El y )
+void insert ( vector <Track>& data, int& length, Track y )
 {// pre-condition:
     Slice s = mkSlice(0,length-1) ;
     assert (length >= 0 && is_sorted (data, s)) ;
@@ -284,18 +351,18 @@ void insert ( El data [], int& length, El y )
 	length++;
 }
 
-void swap (El data [], int  i, int  j )
+void swap (vector <Track>& data, int  i, int  j )
 {//	pre-condition:
 	assert ( i >= 0 && j >= 0 ) ;	// ... and i < size of data
 						            // ... and j < size of data
 // Post-condition: data[i] = old data[j] and data[j] = old data[i]
-	const El HELP = data [i];
+	const Track HELP = data [i];
 	data [i] = data [j] ;
 	data [j] = HELP;
 }
 
 //	array based insertion sort:
-void insertion_sort ( El data [], int length )
+void insertion_sort ( vector <Track>& data, int length )
 {
 	int sorted = 1 ;
     while ( sorted < length )
@@ -304,7 +371,7 @@ void insertion_sort ( El data [], int length )
 }
 
 //	array based selection sort:
-int smallest_value_at ( El data [], Slice s )
+int smallest_value_at ( vector <Track>& data, Slice s )
 {//	pre-condition:
 	assert (valid_slice (s)) ;	// ... and s.to < size (s)
 //	Post-condition: s.from <= result <= s.to and data[result] is
@@ -316,7 +383,7 @@ int smallest_value_at ( El data [], Slice s )
 	return smallest_at ;
 }
 
-void selection_sort ( El data [], int length )
+void selection_sort ( vector <Track>& data, int length )
 {	for ( int unsorted = 0 ; unsorted < length ; unsorted++ )
 	{   const int k = smallest_value_at (data, mkSlice (unsorted, length-1));
 	    swap ( data, unsorted, k ) ;
@@ -324,7 +391,7 @@ void selection_sort ( El data [], int length )
 }
 
 //	array based bubble sort:
-bool bubble ( El data [], Slice s )
+bool bubble ( vector<Track>& data , Slice s )
 {//	pre-condition:
 	assert (valid_slice(s));	// ... and s.to < size(data)
 //	Post-condition:
@@ -336,13 +403,26 @@ bool bubble ( El data [], Slice s )
 		{	swap ( data, i, i+1 ) ;
 			is_sorted = false ;
 		}
+    print(s.from);
 	return is_sorted ;
 }
 
-void bubble_sort ( El data [], int length )
+void bubble_sort ( vector<Track>& data, int length )
 {
+    int check = 99;
+    int i = 0 ;
     while ( !bubble ( data, mkSlice (0, length-1 ) ) )
+    {
+        cout<<length<<endl;
         length-- ;
+        i++;
+        if (i==check)
+        {
+            check += 100;
+            print(i);
+        }
+    }
+
 }
 
 
@@ -363,18 +443,20 @@ SortingMethod get_sorting_method ()
         cout << m+1 << ": " << methods[m] << " sort" << endl ;
     int choice ;
     cin >> choice ;
-    choice = maximum (1, minimum (choice, NoOfSortingMethods)) ;
+    choice = max(1, min(choice, (int)NoOfSortingMethods)) ;
     return static_cast<SortingMethod>(choice-1) ;
 }
 
 int main()
 {
-	const int NO_OF_SONGS = read_file ("Tracks.txt");
+	const int NO_OF_SONGS = read_file ("t.txt");
 	if (NO_OF_SONGS < 0)
 	{
         cout << "Reading file failed. Program terminates." << endl;
 	    return NO_OF_SONGS;
     }
+
+
     SortingMethod m = get_sorting_method () ;
     cout << "Sorting tracks with " << methods[m] << " sort" << endl;
     switch (m)
@@ -382,9 +464,12 @@ int main()
         case InsertionSort: insertion_sort(songs,NO_OF_SONGS) ; break ;
         case SelectionSort: selection_sort(songs,NO_OF_SONGS) ; break ;
         case BubbleSort:    bubble_sort   (songs,NO_OF_SONGS) ; break ;
-        default:        cout << "Huh?" << endl ;
+        default: cout << "Huh?" << endl ;
     }
     cout << "Tracks sorted." << endl;
-    show_all_tracks (songs,NO_OF_SONGS) ;
+
+    //show_all_tracks (songs,NO_OF_SONGS) ;
+    cout << iteration << endl;
+
 	return 0;
 }
